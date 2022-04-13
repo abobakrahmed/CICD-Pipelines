@@ -1,0 +1,39 @@
+node {
+   timeout(time: 2, unit: "MINUTES") {
+      stage("Jenkins Check status") {
+      sh '/root/jenkins.sh'
+      }   
+     }
+}
+node ('Building-VM') {
+    
+    stage('Pull New Changes') {
+            sh 'cd /home/azureuser/dev-tarasol-officetempo && ./pull-code.sh'
+        }
+        
+    stage ('Build Docker Image') {
+            sh 'cd  /home/azureuser/dev-tarasol-officetempo/In3-Tarasol/Services/Correspondences/OfficeTempo.CMS.Api/ && sudo docker build -t  tarasol-officetempo:dev_${BUILD_NUMBER} -f Dockerfile-staging .'
+        }
+
+    stage ('tag Image With Commit ID ') {
+            sh 'sudo docker login 40.0.0.0:8070 && sudo docker tag tarasol-officetempo:dev_${BUILD_NUMBER} 40.117.91.79:8070/tarasol-officetempo:dev-$(git rev-parse --short HEAD)'
+        }
+        
+    stage('Push Docker Image With Commit ID To Nexus Repository') {
+          script { 
+              GIT_COMMIT_ID = sh ( script: 'echo $(git rev-parse --short HEAD)', returnStdout: true).trim() 
+              }
+           sh ("sudo docker push 40.0.0.0:8070/tarasol-officetempo:dev-${GIT_COMMIT_ID}")
+        }
+        
+    stage ('Deploy to dev Enviroment') {
+            sh ("kubectl --kubeconfig /root/.kube/config -ndev set image deployment/tarasol-officetempo tarasol-officetempo=40.117.91.79:8070/tarasol-officetempo:dev-${GIT_COMMIT_ID}")
+        }
+  }
+  node {
+   timeout(time: 2, unit: "MINUTES") {
+      stage("Jenkins Check status") {
+      sh '/root/jenkins-finish.sh'
+      }   
+     }
+}
