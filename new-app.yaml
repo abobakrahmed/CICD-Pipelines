@@ -1,0 +1,32 @@
+pipeline { 
+  agent { label 'Payouts-Staging' }
+  stages {
+    stage('PullChanges') {
+        steps {
+            sh 'cd /home/ec2-user/Payouts/ && ./pull-code.sh'
+        }
+    }
+    stage('BuildImage') {
+      steps {
+        sh 'cd /home/ec2-user/Payouts/disbursement_tool && docker-compose build'
+      }
+    }
+    stage('ImageRunning') {
+      steps {
+        sh 'cd /home/ec2-user/Payouts/disbursement_tool && docker-compose up -d && cd .. && ./testing-cmd.sh'     
+        }
+    }
+    stage('Sonarqube') {
+      steps {
+          sh 'cd /home/ec2-user/Payouts/ && ./sonar-scanner.sh'
+        }
+      } 
+    stage('PushToNexusRegistry') {
+        steps {
+          sh "cd /home/ec2-user/Payouts/disbursement_tool" 
+          sh "docker tag disbursement_tool_payouts registry.paymobsolutions.com:5000/payout-staging:${BUILD_NUMBER}"
+          sh "docker push registry.paymobsolutions.com:5000/payout-staging:${BUILD_NUMBER}"
+        }  
+      }
+    }
+  }0

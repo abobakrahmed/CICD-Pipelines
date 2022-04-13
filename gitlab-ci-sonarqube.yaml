@@ -1,0 +1,15 @@
+image:
+  name: sonarsource/sonar-scanner-cli:latest
+  entrypoint: [""]
+variables:
+  SONAR_TOKEN: "your-sonarqube-token"
+  SONAR_HOST_URL: "http://your-sonarqube-instance.org"
+  GIT_DEPTH: 0
+sonarqube-check:
+  stage: test
+  script:
+    - sonar-scanner -Dsonar.qualitygate.wait=true -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.login=$SONAR_TOKEN
+  allow_failure: true
+  only:
+    - merge_requests
+    - master
